@@ -3,11 +3,11 @@ description: What this photo sorter is and how to change it safely
 alwaysApply: true
 ---
 
-# Photos sorter
+# images sorter
 
-`script.py` renames screenshots inside `PHOTOS_DIR`. Ollama (`OLLAMA_MODEL`, default `openbmb/minicpm-v4.6`) picks one word from `ALLOWED_KEYWORDS` and a 2–3 word slug. The file stays in that folder as `YYYY-MM-DD_<keyword>_<slug>.<ext>`. Omit the keyword when nothing fits; do not write `other`. Insert `_HH-MM-SS` after the date only when that name is taken. The date comes from EXIF `DateTimeOriginal`, or file mtime.
+`script.py` renames screenshots inside `IMG_DIR`. Ollama (`OLLAMA_MODEL`, default `openbmb/minicpm-v4.6`) picks one word from `ALLOWED_KEYWORDS` and a 2–3 word slug. The file stays in that folder as `YYYY-MM-DD_<keyword>_<slug>.<ext>`. Omit the keyword when nothing fits; do not write `other`. Insert `_HH-MM-SS` after the date only when that name is taken. The date comes from EXIF `DateTimeOriginal`, or file mtime.
 
-- Read the target folder from `.env` `PHOTOS_DIR`. A CLI path overrides it. Do not hardcode a personal path.
+- Read the target folder from `.env` `IMG_DIR`. A CLI path overrides it. Do not hardcode a personal path.
 - Do not create date folders. Move images out of leftover `YYYY-MM-DD` folders, then remove a folder only when it is empty.
 - Rename when a keyword or a slug is known. If the model call fails completely, leave the file where it is. Skip files that already match `YYYY-MM-DD[_HH-MM-SS][_keyword]_slug`.
 - Login and password screens are `credentials`. The slug names the service and must not contain the secret, a code, an email, or a phone number. Ask Ollama with thinking disabled.

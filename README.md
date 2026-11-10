@@ -1,6 +1,6 @@
-# Photos
+# image-renamer
 
-Local sorter for screenshots and photos. It asks a vision model running in [Ollama](https://ollama.com) for one keyword and a short description, then renames each image in the same folder. It does not create folders.
+Local sorter for screenshots and images. It asks a vision model running in [Ollama](https://ollama.com) for one keyword and a short description, then renames each image in the same folder. It does not create folders.
 
 ## What it does
 
@@ -8,10 +8,10 @@ For each `.jpg`, `.jpeg`, `.png`, and `.webp` file in the source folder:
 
 1. Reads `DateTimeOriginal` from EXIF. If that is missing, it uses the file modification time.
 2. Sends a 512px JPEG preview to Ollama. The model returns a 2–3 word description. A file that already carries a keyword keeps it; otherwise the model also picks the keyword.
-3. Renames it to `YYYY-MM-DD_<keyword>_<short-slug>.<ext>` in `PHOTOS_DIR`. Example: `2025-01-15_git_merge-request.png`. When no keyword fits, the keyword is left out: `2025-01-15_screen-snippet.png`.
+3. Renames it to `YYYY-MM-DD_<keyword>_<short-slug>.<ext>` in `IMG_DIR`. Example: `2025-01-15_git_merge-request.png`. When no keyword fits, the keyword is left out: `2025-01-15_screen-snippet.png`.
 4. If that name is already taken, inserts `_HH-MM-SS` after the date.
 
-Files left in `YYYY-MM-DD` folders by an older run are moved back into `PHOTOS_DIR` and those empty folders are removed. A file that already has the keyword, the date, and a slug is left alone. A name with only the keyword and the date is sent back so the model can add the description.
+Files left in `YYYY-MM-DD` folders by an older run are moved back into `IMG_DIR` and those empty folders are removed. A file that already has the keyword, the date, and a slug is left alone. A name with only the keyword and the date is sent back so the model can add the description.
 
 Built-in keywords, most specific first: `credentials`, `chat`, `meeting`, `diagram`, `database`, `git`, `terminal`, `code`, `wireless`, `directory`, `project`, `document`, `receipt`, `notes`, `chart`, `error`, `settings`, `browser`, `meme`. Personal labels live in `keywords.local.py` (see `keywords.local.example.py`) and are checked first. That file is gitignored.
 
@@ -35,7 +35,7 @@ cp .env.example .env   # skip if .env already exists
 cp keywords.local.example.py keywords.local.py   # optional personal labels
 ```
 
-Set `PHOTOS_DIR` in `.env` to the folder you want to sort. Paths may start with `~`.
+Set `IMG_DIR` in `.env` to the folder you want to sort. Paths may start with `~`.
 
 Pull the model once:
 
@@ -49,7 +49,7 @@ ollama pull openbmb/minicpm-v4.6
 python script.py
 ```
 
-A path passed on the command line overrides `PHOTOS_DIR`:
+A path passed on the command line overrides `IMG_DIR`:
 
 ```bash
 python script.py ~/Pictures/Screenshots
@@ -57,4 +57,4 @@ python script.py ~/Pictures/Screenshots
 
 If neither is set, the script asks for a path. An empty answer sorts the current directory.
 
-Moving files is immediate and in place. Point `PHOTOS_DIR` at a copy if you want to try the sorter first.
+Moving files is immediate and in place. Point `IMG_DIR` at a copy if you want to try the sorter first.

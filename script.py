@@ -455,11 +455,11 @@ def organize_images_with_ai(source_dir):
 
 
 def resolve_source_dir():
-  """CLI path, then PHOTOS_DIR from .env, then an interactive prompt."""
+  """CLI path, then IMG_DIR from .env, then an interactive prompt."""
   if len(sys.argv) > 1:
     path_to_sort = sys.argv[1].strip()
   else:
-    path_to_sort = os.getenv("PHOTOS_DIR", "").strip()
+    path_to_sort = os.getenv("IMG_DIR", "").strip()
   if not path_to_sort:
     path_to_sort = input(
         "Enter the path to the folder with images: "
