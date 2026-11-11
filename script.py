@@ -149,7 +149,7 @@ VALID_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 
 
 def get_image_date(file_path):
-  """Gets the date from EXIF or falls back to file modification date."""
+  """Gets the date from EXIF, else file creation time, else mtime."""
   try:
     with Image.open(file_path) as img:
       exif_data = img.getexif()
@@ -160,7 +160,9 @@ def get_image_date(file_path):
             return datetime.strptime(value, "%Y:%m:%d %H:%M:%S")
   except Exception:
     pass
-  return datetime.fromtimestamp(os.path.getmtime(file_path))
+  stat = os.stat(file_path)
+  created = getattr(stat, "st_birthtime", 0) or stat.st_mtime
+  return datetime.fromtimestamp(created)
 
 
 def fold_text(value):
@@ -213,13 +215,18 @@ def looks_like_secret(part):
 
 
 def clean_slug(value):
-  """Turns a model phrase into 2 or 3 filename words."""
+  """Turns a model phrase into 4 to 6 filename words."""
   folded = fold_text(value)
   parts = [
       part for part in re.findall(r"[a-z0-9]+", folded)
       if part not in SLUG_STOPWORDS and not looks_like_secret(part)
   ]
-  return "-".join(parts[:3])[:48]
+  words = parts[:6]
+  slug = "-".join(words)
+  while len(slug) > 72 and words:
+    words.pop()
+    slug = "-".join(words)
+  return slug
 
 
 def ask_chat(file_path, prompt, num_predict):
@@ -253,12 +260,12 @@ def ask_model(file_path, known_keyword):
   try:
     slug_text = ask_chat(
         file_path,
-        "Name what is visible in 2 or 3 English words. "
-        "Use hyphens and no other words. Example: merge-request. "
+        "Name what is visible in 4 to 6 English words. "
+        "Use hyphens and no other words. Example: gitlab-merge-request-diff. "
         "Never write a password, passphrase, API key, token, code, "
         "username, email, or phone number. If a secret is on screen, "
         "name the service instead, such as gitlab-login or wifi-panel.",
-        num_predict=24,
+        num_predict=48,
     )
     slug = clean_slug(slug_text)
     print(f"Model said: {slug_text}")
@@ -363,7 +370,7 @@ def path_is_free(path, source_path):
 
 
 def build_filename(date_stamp, keyword, slug, ext, time_stamp=None, counter=None):
-  """YYYY-MM-DD[_HH-MM-SS][_keyword]_slug. The keyword is omitted when empty."""
+  """YYYY-MM-DD_HH-MM-SS[_n][_keyword]_slug. The keyword is omitted when empty."""
   parts = [date_stamp]
   if time_stamp:
     parts.append(time_stamp)
@@ -377,18 +384,11 @@ def build_filename(date_stamp, keyword, slug, ext, time_stamp=None, counter=None
 
 
 def target_path_for(source_dir, source_path, keyword, slug):
-  """Date, then keyword, then slug. Adds HH-MM-SS when that name is taken."""
+  """Date, time, then keyword, then slug. Adds a counter when that name is taken."""
   file_dt = get_image_date(source_path)
   ext = os.path.splitext(source_path)[1].lower()
   date_stamp = file_dt.strftime("%Y-%m-%d")
   time_stamp = file_dt.strftime("%H-%M-%S")
-  plain = os.path.join(
-      source_dir,
-      build_filename(date_stamp, keyword, slug, ext),
-  )
-  if path_is_free(plain, source_path):
-    return plain
-
   timed = os.path.join(
       source_dir,
       build_filename(date_stamp, keyword, slug, ext, time_stamp),

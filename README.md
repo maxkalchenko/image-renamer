@@ -6,12 +6,12 @@ Local sorter for screenshots and images. It asks a vision model running in [Olla
 
 For each `.jpg`, `.jpeg`, `.png`, and `.webp` file in the source folder:
 
-1. Reads `DateTimeOriginal` from EXIF. If that is missing, it uses the file modification time.
-2. Sends a 512px JPEG preview to Ollama. The model returns a 2–3 word description. A file that already carries a keyword keeps it; otherwise the model also picks the keyword.
-3. Renames it to `YYYY-MM-DD_<keyword>_<short-slug>.<ext>` in `IMG_DIR`. Example: `2025-01-15_git_merge-request.png`. When no keyword fits, the keyword is left out: `2025-01-15_screen-snippet.png`.
-4. If that name is already taken, inserts `_HH-MM-SS` after the date.
+1. Reads `DateTimeOriginal` from EXIF. If that is missing, it uses the file creation time, then the modification time.
+2. Sends a 512px JPEG preview to Ollama. The model returns a 4–6 word description. A file that already carries a keyword keeps it; otherwise the model also picks the keyword.
+3. Renames it to `YYYY-MM-DD_HH-MM-SS_<keyword>_<slug>.<ext>` in `IMG_DIR`. Example: `2025-01-15_16-42-14_git_merge-request-diff.png`. When no keyword fits, the keyword is left out: `2025-01-15_16-42-14_wifi-guest-network.png`.
+4. If that name is already taken, inserts `_2`, `_3`, and so on after the time.
 
-Files left in `YYYY-MM-DD` folders by an older run are moved back into `IMG_DIR` and those empty folders are removed. A file that already has the keyword, the date, and a slug is left alone. A name with only the keyword and the date is sent back so the model can add the description.
+Files left in `YYYY-MM-DD` folders by an older run are moved back into `IMG_DIR` and those empty folders are removed. A file that already has the date and a slug is left alone, including older names that have no clock time. A name with only the keyword and the date is sent back so the model can add the description.
 
 Built-in keywords, most specific first: `credentials`, `chat`, `meeting`, `diagram`, `database`, `git`, `terminal`, `code`, `wireless`, `directory`, `project`, `document`, `receipt`, `notes`, `chart`, `error`, `settings`, `browser`, `meme`. Personal labels live in `keywords.local.py` (see `keywords.local.example.py`) and are checked first. That file is gitignored.
 

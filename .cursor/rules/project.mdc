@@ -5,7 +5,7 @@ alwaysApply: true
 
 # images sorter
 
-`script.py` renames screenshots inside `IMG_DIR`. Ollama (`OLLAMA_MODEL`, default `openbmb/minicpm-v4.6`) picks one word from `ALLOWED_KEYWORDS` and a 2–3 word slug. The file stays in that folder as `YYYY-MM-DD_<keyword>_<slug>.<ext>`. Omit the keyword when nothing fits; do not write `other`. Insert `_HH-MM-SS` after the date only when that name is taken. The date comes from EXIF `DateTimeOriginal`, or file mtime.
+`script.py` renames screenshots inside `IMG_DIR`. Ollama (`OLLAMA_MODEL`, default `openbmb/minicpm-v4.6`) picks one word from `ALLOWED_KEYWORDS` and a 4–6 word slug. The file stays in that folder as `YYYY-MM-DD_HH-MM-SS_<keyword>_<slug>.<ext>`. Omit the keyword when nothing fits; do not write `other`. Append `_2`, `_3`, … after the time only when that name is taken. The date comes from EXIF `DateTimeOriginal`, or file birth time, then mtime.
 
 - Read the target folder from `.env` `IMG_DIR`. A CLI path overrides it. Do not hardcode a personal path.
 - Do not create date folders. Move images out of leftover `YYYY-MM-DD` folders, then remove a folder only when it is empty.

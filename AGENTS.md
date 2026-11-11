@@ -6,11 +6,11 @@ Local, in-place sorter for a flat folder of screenshots. There is no web UI, dat
 
 `organize_images_with_ai` lists the top level of the source directory. For each image it:
 
-1. `get_image_date` — EXIF `DateTimeOriginal` (`%Y:%m:%d %H:%M:%S`), else file mtime. The date goes into the filename. No directory is created.
-2. `keyword_for` reuses a keyword already in the filename (`git.png`, `2024-12-12git.png`, `git_2025-01-15.png`). `ask_model` calls Ollama `/api/chat` with thinking disabled and asks for a 2–3 word slug. A file with no keyword gets a second short call for the label.
-3. `os.rename` inside `IMG_DIR` to `YYYY-MM-DD_<keyword>_<slug>.<ext>`. With no keyword the name is `YYYY-MM-DD_<slug>.<ext>`. A taken name inserts `_HH-MM-SS` after the date.
+1. `get_image_date` — EXIF `DateTimeOriginal` (`%Y:%m:%d %H:%M:%S`), else file birth time, else mtime. The date and time go into the filename. No directory is created.
+2. `keyword_for` reuses a keyword already in the filename (`git.png`, `2024-12-12git.png`, `git_2025-01-15.png`). `ask_model` calls Ollama `/api/chat` with thinking disabled and asks for a 4–6 word slug. A file with no keyword gets a second short call for the label.
+3. `os.rename` inside `IMG_DIR` to `YYYY-MM-DD_HH-MM-SS_<keyword>_<slug>.<ext>`. With no keyword the name is `YYYY-MM-DD_HH-MM-SS_<slug>.<ext>`. A taken name inserts `_2`, `_3`, … after the time.
 
-Files that already include the slug are skipped. A keyword and date without a slug are described again. Images inside a `YYYY-MM-DD` folder from an older run are moved back to `IMG_DIR`, and the empty date folder is removed. If the model reply is cut off, the file stays where it is.
+Files that already include the slug are skipped, including older names that have no clock time. A keyword and date without a slug are described again. Images inside a `YYYY-MM-DD` folder from an older run are moved back to `IMG_DIR`, and the empty date folder is removed. If the model reply is cut off, the file stays where it is.
 
 ## Configuration
 
