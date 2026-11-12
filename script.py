@@ -11,7 +11,7 @@ import unicodedata
 import requests
 from dotenv import load_dotenv
 from PIL import Image
-from PIL.ExifTags import TAGS
+from PIL.ExifTags import IFD, TAGS
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
@@ -23,7 +23,7 @@ MODEL_NAME = os.getenv("OLLAMA_MODEL", "openbmb/minicpm-v4.6")
 
 # Built-in labels. Personal ones are prepended from keywords.local.py.
 # The first match in the merged list wins.
-# There is no "other": a screen that fits nothing contributes no keyword.
+# There is no "other": a screen or photograph that fits nothing contributes no keyword.
 GENERIC_KEYWORDS = [
     "credentials",
     "chat",
@@ -44,6 +44,10 @@ GENERIC_KEYWORDS = [
     "settings",
     "browser",
     "meme",
+    "people",
+    "animal",
+    "food",
+    "nature",
 ]
 
 # Words the model may say that should be stored as a listed keyword.
@@ -66,12 +70,24 @@ GENERIC_ALIASES = {
     "call": "meeting",
     "letter": "document",
     "website": "browser",
+    "person": "people",
+    "couple": "people",
+    "portrait": "people",
+    "selfie": "people",
+    "pet": "animal",
+    "dog": "animal",
+    "cat": "animal",
+    "meal": "food",
+    "dish": "food",
+    "landscape": "nature",
+    "forest": "nature",
+    "flower": "nature",
 }
 
 GENERIC_GUIDE = """
 credentials: a login, password, passkey, or username screen. Never copy the secret
-chat: Telegram, Slack, Messenger, or any other chat
-meeting: a video call such as Google Meet or Zoom
+chat: Telegram, Slack, Messenger, or any other chat screen. Not people talking in a photo
+meeting: a video call such as Google Meet or Zoom. Not a photograph of people
 diagram: a flowchart or node diagram
 database: a database console, such as Neo4j
 git: Git, GitHub, or GitLab
@@ -82,12 +98,16 @@ directory: a file or folder list
 project: a project page
 document: a PDF, specification, form, or letter
 receipt: an order, invoice, payment, or parcel pickup code
-notes: notes or a task list
+notes: a notes or task app. Not a reminder of a place
 chart: a plot or chart
 error: an error dialog or stack trace
 settings: a settings page that is not a password screen
-browser: any other website
+browser: any other website. Not a camera photograph
 meme: a joke image
+people: a photograph of a person, couple, or group
+animal: a pet or other animal
+food: a meal, dish, or drink
+nature: a landscape, forest, plant, flower, or outdoor place where a person is not the subject
 """.strip()
 
 
@@ -141,23 +161,34 @@ LEGACY_OTHER = re.compile(
     r"^(?:other(?:_\d+)?|other_\d{4}-\d{2}-\d{2}.*|\d{4}-\d{2}-\d{2}other(?:_\d+)?)$"
 )
 NEW_NAME = re.compile(
-    r"^(?P<date>\d{4}-\d{2}-\d{2})"
+    r"^(?:(?P<device>[a-z0-9]+(?:-[a-z0-9]+)*)_)?"
+    r"(?P<date>\d{4}-\d{2}-\d{2})"
     r"(?:_(?P<time>\d{2}-\d{2}-\d{2})(?:_(?P<n>\d+))?)?"
     r"(?:_(?P<rest>.+))?$"
 )
 VALID_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 
 
+def exif_datetime(tags, name):
+  """Reads one EXIF datetime tag. Camera dates live in the Exif IFD."""
+  for tag_id, value in tags.items():
+    if TAGS.get(tag_id) == name and value:
+      return datetime.strptime(str(value)[:19], "%Y:%m:%d %H:%M:%S")
+  return None
+
+
 def get_image_date(file_path):
   """Gets the date from EXIF, else file creation time, else mtime."""
   try:
     with Image.open(file_path) as img:
-      exif_data = img.getexif()
-      if exif_data:
-        for tag_id, value in exif_data.items():
-          tag = TAGS.get(tag_id, tag_id)
-          if tag == "DateTimeOriginal":
-            return datetime.strptime(value, "%Y:%m:%d %H:%M:%S")
+      exif = img.getexif()
+      if exif:
+        original = exif_datetime(exif.get_ifd(IFD.Exif), "DateTimeOriginal")
+        if original:
+          return original
+        recorded = exif_datetime(exif, "DateTime")
+        if recorded:
+          return recorded
   except Exception:
     pass
   stat = os.stat(file_path)
@@ -170,6 +201,97 @@ def fold_text(value):
   value = value.strip().lower()
   value = unicodedata.normalize("NFKD", value)
   return "".join(ch for ch in value if not unicodedata.combining(ch))
+
+
+def device_words(value):
+  """Filename pieces of a camera make or model. Codes like iPhone14,2 stay."""
+  return re.findall(r"[a-z0-9]+", fold_text(value))
+
+
+def limit_device(words):
+  """Joins device words and drops whole words past 48 characters."""
+  words = list(words)
+  slug = "-".join(words)
+  while len(slug) > 48 and words:
+    words.pop()
+    slug = "-".join(words)
+  return slug
+
+
+def device_from_make_model(make, model):
+  """Model when it already names the brand, otherwise make plus model."""
+  make_words = device_words(make)
+  model_words = device_words(model)
+  if not model_words:
+    return limit_device(make_words)
+  make_slug = "-".join(make_words)
+  model_slug = "-".join(model_words)
+  if make_slug and make_slug in model_slug:
+    return limit_device(model_words)
+  if make_slug == "apple" and model_slug.startswith("iphone"):
+    return limit_device(model_words)
+  if make_words:
+    return limit_device(make_words + model_words)
+  return limit_device(model_words)
+
+
+def decode_user_comment(value):
+  """Drops the 8-byte EXIF charset prefix on UserComment."""
+  if isinstance(value, bytes):
+    if value.startswith(b"ASCII\x00\x00\x00"):
+      value = value[8:].decode("latin1", "replace")
+    elif value.startswith(b"UNICODE\x00"):
+      value = value[8:].decode("utf-16-le", "replace")
+    else:
+      value = value.decode("utf-8", "replace")
+  return str(value).replace("\x00", "").strip()
+
+
+def xmp_user_comment(img):
+  """Reads exif:UserComment from raw XMP. No XML parser, so no new dependency."""
+  raw = img.info.get("xmp") or img.info.get("XML:com.adobe.xmp") or b""
+  if isinstance(raw, str):
+    raw = raw.encode("utf-8", "replace")
+  text = raw.decode("utf-8", "replace")
+  match = re.search(
+      r"<exif:UserComment>(.*?)</exif:UserComment>",
+      text,
+      re.IGNORECASE | re.DOTALL,
+  )
+  if not match:
+    return ""
+  return match.group(1).strip()
+
+
+def device_slug(file_path):
+  """Camera or phone model, else screenshot, else an empty string."""
+  try:
+    with Image.open(file_path) as img:
+      exif = img.getexif()
+      make = ""
+      model = ""
+      comment = ""
+      if exif:
+        for tag_id, value in exif.items():
+          name = TAGS.get(tag_id)
+          if name == "Make" and value:
+            make = str(value)
+          elif name == "Model" and value:
+            model = str(value)
+        named = device_from_make_model(make, model)
+        if named:
+          return named
+        for tag_id, value in exif.get_ifd(IFD.Exif).items():
+          if TAGS.get(tag_id) == "UserComment" and value:
+            comment = decode_user_comment(value)
+            break
+      if not comment:
+        comment = xmp_user_comment(img)
+      if fold_text(comment) == "screenshot":
+        return "screenshot"
+  except Exception:
+    pass
+  return ""
 
 
 def pick_keyword(result):
@@ -278,7 +400,9 @@ def ask_model(file_path, known_keyword):
         + ", ".join(ALLOWED_KEYWORDS)
         + ".\n"
         + KEYWORD_GUIDE
-        + "\nIf nothing fits, reply none.",
+        + "\nFor a camera photograph, use people, animal, food, or nature. "
+        "If none of the definitions truly fits, reply none. "
+        "Do not choose the closest word.",
         num_predict=8,
     )
     print(f"Label said: {label_text}")
@@ -301,7 +425,7 @@ def split_keyword_slug(rest):
 
 
 def parse_new_name(stem):
-  """Reads YYYY-MM-DD[_HH-MM-SS][_keyword]_slug. None for older shapes."""
+  """Reads [device_]YYYY-MM-DD[_HH-MM-SS][_keyword]_slug. None for older shapes."""
   match = NEW_NAME.fullmatch(stem)
   if not match or not match.group("rest"):
     return None
@@ -312,7 +436,7 @@ def parse_new_name(stem):
 def iter_images(source_dir):
   """Images that still need a date and a description in the filename.
 
-  A finished name is YYYY-MM-DD[_HH-MM-SS][_keyword]_slug. Images sitting
+  A finished name is [device_]YYYY-MM-DD[_HH-MM-SS][_keyword]_slug. Images sitting
   in YYYY-MM-DD folders from an older run are included so they can move back.
   """
   for filename in sorted(os.listdir(source_dir)):
@@ -369,9 +493,14 @@ def path_is_free(path, source_path):
   )
 
 
-def build_filename(date_stamp, keyword, slug, ext, time_stamp=None, counter=None):
-  """YYYY-MM-DD_HH-MM-SS[_n][_keyword]_slug. The keyword is omitted when empty."""
-  parts = [date_stamp]
+def build_filename(
+  date_stamp, keyword, slug, ext, time_stamp=None, counter=None, device=None
+):
+  """[device_]YYYY-MM-DD_HH-MM-SS[_n][_keyword]_slug. The keyword is omitted when empty."""
+  parts = []
+  if device:
+    parts.append(device)
+  parts.append(date_stamp)
   if time_stamp:
     parts.append(time_stamp)
   if counter:
@@ -384,14 +513,17 @@ def build_filename(date_stamp, keyword, slug, ext, time_stamp=None, counter=None
 
 
 def target_path_for(source_dir, source_path, keyword, slug):
-  """Date, time, then keyword, then slug. Adds a counter when that name is taken."""
+  """Device, date, time, then keyword, then slug. Adds a counter when that name is taken."""
   file_dt = get_image_date(source_path)
   ext = os.path.splitext(source_path)[1].lower()
   date_stamp = file_dt.strftime("%Y-%m-%d")
   time_stamp = file_dt.strftime("%H-%M-%S")
+  device = device_slug(source_path)
   timed = os.path.join(
       source_dir,
-      build_filename(date_stamp, keyword, slug, ext, time_stamp),
+      build_filename(
+          date_stamp, keyword, slug, ext, time_stamp, device=device
+      ),
   )
   if path_is_free(timed, source_path):
     return timed
@@ -401,7 +533,7 @@ def target_path_for(source_dir, source_path, keyword, slug):
     path = os.path.join(
         source_dir,
         build_filename(
-            date_stamp, keyword, slug, ext, time_stamp, counter
+            date_stamp, keyword, slug, ext, time_stamp, counter, device
         ),
     )
     if path_is_free(path, source_path):

@@ -5,11 +5,11 @@ alwaysApply: true
 
 # images sorter
 
-`script.py` renames screenshots inside `IMG_DIR`. Ollama (`OLLAMA_MODEL`, default `openbmb/minicpm-v4.6`) picks one word from `ALLOWED_KEYWORDS` and a 4–6 word slug. The file stays in that folder as `YYYY-MM-DD_HH-MM-SS_<keyword>_<slug>.<ext>`. Omit the keyword when nothing fits; do not write `other`. Append `_2`, `_3`, … after the time only when that name is taken. The date comes from EXIF `DateTimeOriginal`, or file birth time, then mtime.
+`script.py` renames screenshots and photographs inside `IMG_DIR`. Ollama (`OLLAMA_MODEL`, default `openbmb/minicpm-v4.6`) picks one word from `ALLOWED_KEYWORDS` and a 4–6 word slug. The file stays in that folder as `[device_]YYYY-MM-DD_HH-MM-SS_<keyword>_<slug>.<ext>`. The device is the EXIF model when present, or `screenshot` when XMP or EXIF says so. Omit the keyword when nothing fits; do not write `other`. Camera photographs use `people`, `animal`, `food`, or `nature`. Append `_2`, `_3`, … after the time only when that name is taken. The date comes from EXIF `DateTimeOriginal` in the Exif IFD, then `DateTime`, then file birth time, then mtime.
 
 - Read the target folder from `.env` `IMG_DIR`. A CLI path overrides it. Do not hardcode a personal path.
 - Do not create date folders. Move images out of leftover `YYYY-MM-DD` folders, then remove a folder only when it is empty.
-- Rename when a keyword or a slug is known. If the model call fails completely, leave the file where it is. Skip files that already match `YYYY-MM-DD[_HH-MM-SS][_keyword]_slug`.
+- Rename when a keyword or a slug is known. If the model call fails completely, leave the file where it is. Skip files that already match `[device_]YYYY-MM-DD[_HH-MM-SS][_keyword]_slug`.
 - Login and password screens are `credentials`. The slug names the service and must not contain the secret, a code, an email, or a phone number. Ask Ollama with thinking disabled.
 - Add built-in labels in `GENERIC_KEYWORDS` (specific first) and one line in `GENERIC_GUIDE`. Personal labels go in gitignored `keywords.local.py`, specific first. `ALLOWED_KEYWORDS` is the merged list. Convert previews to RGB before JPEG: macOS screenshots are RGBA.
 - Dependencies: `Pillow`, `requests`, `python-dotenv`. Indent Python with 2 spaces, matching `script.py`.
