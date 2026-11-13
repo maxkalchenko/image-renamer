@@ -31,7 +31,7 @@ Built-in labels stay in `GENERIC_KEYWORDS`. Personal labels live in gitignored `
 - Never put a password, key, token, code, username, email, or phone number in a slug. Login screens use `credentials` and describe the service.
 - A request or encode failure leaves the file where it is. A missing keyword still allows a rename when the slug exists.
 - Screenshots are often RGBA. Convert the preview to RGB before saving JPEG.
-- Dependencies are `Pillow`, `requests`, and `python-dotenv`, declared in `requirements.txt`.
+- Dependencies are `Pillow`, `pillow-heif`, `requests`, and `python-dotenv`, declared in `requirements.txt`. `pillow-heif` registers HEIC and HEIF so `Image.open` can read them. The file on disk keeps its extension.
 - Match the 2-space indent already used in `script.py`.
 - Comments, docs, and identifiers stay in English. Chat replies to the user stay in Ukrainian.
 - `.env` and `keywords.local.py` are gitignored. Commit `.env.example` when the variable set changes, and `keywords.local.example.py` when the local keyword format changes.

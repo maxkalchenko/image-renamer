@@ -4,7 +4,7 @@ Local sorter for screenshots and images. It asks a vision model running in [Olla
 
 ## What it does
 
-For each `.jpg`, `.jpeg`, `.png`, and `.webp` file in the source folder:
+For each `.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`, and `.heif` file in the source folder:
 
 1. Reads `DateTimeOriginal` from the EXIF sub-block. If that is missing, it uses `DateTime`, then the file creation time, then the modification time.
 2. Sends a 512px JPEG preview to Ollama. The model returns a 4–6 word description. A file that already carries a keyword keeps it; otherwise the model also picks the keyword.

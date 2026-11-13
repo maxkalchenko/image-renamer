@@ -12,6 +12,9 @@ import requests
 from dotenv import load_dotenv
 from PIL import Image
 from PIL.ExifTags import IFD, TAGS
+from pillow_heif import register_heif_opener
+
+register_heif_opener()
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
@@ -166,7 +169,7 @@ NEW_NAME = re.compile(
     r"(?:_(?P<time>\d{2}-\d{2}-\d{2})(?:_(?P<n>\d+))?)?"
     r"(?:_(?P<rest>.+))?$"
 )
-VALID_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
+VALID_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
 
 
 def exif_datetime(tags, name):
