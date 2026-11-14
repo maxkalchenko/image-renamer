@@ -1,6 +1,6 @@
 # image-renamer
 
-Local sorter for screenshots and images. It asks a vision model running in [Ollama](https://ollama.com) for one keyword and a short description, then renames each image in the same folder. It does not create folders.
+Local sorter for screenshots and images. `script.py` asks a vision model running in [Ollama](https://ollama.com) for one keyword and a short description, then renames each image in the same folder. `group.py` later moves root images into date folders. The renamer itself does not create folders.
 
 ## What it does
 
@@ -11,7 +11,7 @@ For each `.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`, and `.heif` file in the sour
 3. Renames it to `[device_]YYYY-MM-DD_HH-MM-SS_<keyword>_<slug>.<ext>` in `IMG_DIR`. A camera or phone model becomes the first word when EXIF has one: `canon-eos-r6m2_2025-05-06_13-36-11_nature_forest-trail.jpg`. An iPhone model drops the Apple brand: `iphone-14-pro_...`. A code such as `SM-S928B` keeps the make: `samsung-sm-s928b_...`. With no model, an XMP or EXIF comment of `Screenshot` uses `screenshot_...`. With neither, the name starts at the date: `2025-01-15_16-42-14_git_merge-request-diff.png`. When no keyword fits, the keyword is left out.
 4. If that name is already taken, inserts `_2`, `_3`, and so on after the time.
 
-Files left in `YYYY-MM-DD` folders by an older run are moved back into `IMG_DIR` and those empty folders are removed. A file that already has the date and a slug is left alone, including older names that have no clock time. A name with only the keyword and the date is sent back so the model can add the description.
+A file that already has the date and a slug is left alone, including older names that have no clock time. A name with only the keyword and the date is sent back so the model can add the description. Files that already sit in a subfolder stay there.
 
 Built-in keywords, most specific first: `credentials`, `chat`, `meeting`, `diagram`, `database`, `git`, `terminal`, `code`, `wireless`, `directory`, `project`, `document`, `receipt`, `notes`, `chart`, `error`, `settings`, `browser`, `meme`, `people`, `animal`, `food`, `nature`. Personal labels live in `keywords.local.py` (see `keywords.local.example.py`) and are checked first. That file is gitignored.
 
@@ -58,3 +58,16 @@ python script.py ~/Pictures/Screenshots
 If neither is set, the script asks for a path. An empty answer sorts the current directory.
 
 Moving files is immediate and in place. Point `IMG_DIR` at a copy if you want to try the sorter first.
+
+## Group into date folders
+
+`group.py` reads images that are still in the root of `IMG_DIR`. It uses the same date as the renamer and does not rename files or call Ollama. Subfolders, videos, and other files stay where they are.
+
+Photos are ordered by time. A new cluster starts when two neighboring photos are 3 hours or more apart. A cluster may cross midnight when the gap is shorter. A cluster of at least 9 files is moved into a folder named with the first photo's date: `2026-11-10`. A second cluster that starts on that same date becomes `2026-11-10_2`, then `_3`. An existing folder of that name is left alone, and the new cluster takes the next free suffix. A cluster with fewer than 9 files stays in the root.
+
+```bash
+python group.py
+python group.py --dry-run ~/Pictures/Screenshots
+```
+
+`--dry-run` prints the groups and moves nothing. A path on the command line overrides `IMG_DIR`. The same fallback as `script.py` applies: an empty `IMG_DIR` asks for a path, and an empty answer uses the current directory.

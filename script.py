@@ -140,7 +140,6 @@ KEYWORD_GUIDE = "\n".join(
     part for part in (_local_guide, GENERIC_GUIDE) if part
 )
 
-DATE_FOLDER = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _KEYWORD_ALT = "|".join(
     re.escape(keyword)
     for keyword in sorted(ALLOWED_KEYWORDS, key=len, reverse=True)
@@ -437,19 +436,14 @@ def parse_new_name(stem):
 
 
 def iter_images(source_dir):
-  """Images that still need a date and a description in the filename.
+  """Images in the source root that still need a date and a description.
 
-  A finished name is [device_]YYYY-MM-DD[_HH-MM-SS][_keyword]_slug. Images sitting
-  in YYYY-MM-DD folders from an older run are included so they can move back.
+  A finished name is [device_]YYYY-MM-DD[_HH-MM-SS][_keyword]_slug.
+  Subfolders are left alone.
   """
   for filename in sorted(os.listdir(source_dir)):
     path = os.path.join(source_dir, filename)
     if os.path.isdir(path):
-      if not DATE_FOLDER.fullmatch(filename):
-        continue
-      for inner in sorted(os.listdir(path)):
-        if os.path.splitext(inner)[1].lower() in VALID_EXTENSIONS:
-          yield os.path.join(path, inner)
       continue
 
     stem, ext = os.path.splitext(filename)
@@ -545,15 +539,6 @@ def target_path_for(source_dir, source_path, keyword, slug):
   raise RuntimeError(f"Too many name collisions for {source_path}")
 
 
-def remove_empty_date_folders(source_dir):
-  for filename in os.listdir(source_dir):
-    path = os.path.join(source_dir, filename)
-    if not DATE_FOLDER.fullmatch(filename) or not os.path.isdir(path):
-      continue
-    if not os.listdir(path):
-      os.rmdir(path)
-
-
 def organize_images_with_ai(source_dir):
   if not os.path.exists(source_dir):
     print(f"Error: The path '{source_dir}' does not exist.")
@@ -583,7 +568,6 @@ def organize_images_with_ai(source_dir):
     print(f"✅ {label} -> {os.path.basename(target_path)}")
     processed_count += 1
 
-  remove_empty_date_folders(source_dir)
   print(
       f"\nDone! Processed files: {processed_count}. Skipped: {skipped_count}"
   )
