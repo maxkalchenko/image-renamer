@@ -4,6 +4,8 @@ keywords.local.py
 venv/
 __pycache__/
 *.py[cod]
+.ruff_cache/
+.pytest_cache/
 .Python
 .DS_Store
 .idea/

@@ -1,0 +1,26 @@
+# Tool configuration only. The scripts are run directly and are not packaged.
+
+[tool.ruff]
+target-version = "py310"
+line-length = 80
+indent-width = 2
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "F",  # pyflakes
+  "W",  # pycodestyle warnings
+  "I",  # import order
+  "B",  # bugbear
+  "UP", # pyupgrade
+]
+# The formatter owns line length. Long docstrings and prompts stay as written.
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+known-first-party = ["script"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -71,3 +71,26 @@ python group.py --dry-run ~/Pictures/Screenshots
 ```
 
 `--dry-run` prints the groups and moves nothing. A path on the command line overrides `IMG_DIR`. The same fallback as `script.py` applies: an empty `IMG_DIR` asks for a path, and an empty answer uses the current directory.
+
+## Development
+
+Install the development tools into the same virtual environment and turn on the git hooks:
+
+```bash
+pip install -r requirements-dev.txt
+make hooks
+```
+
+| Command | What it runs |
+| --- | --- |
+| `make lint` | `ruff check .` |
+| `make format` | `ruff check --fix .` and `ruff format .` |
+| `make format-check` | `ruff format --check .` |
+| `make test` | `pytest` |
+| `make check` | lint, format check, and tests |
+
+Ruff is configured in `pyproject.toml`: 2-space indent, 80 columns. The tests cover the naming and clustering helpers and never call Ollama. The pre-commit hooks run Ruff and [gitleaks](https://github.com/gitleaks/gitleaks) on every commit. GitHub Actions runs the same checks, plus a gitleaks scan of the whole history, on each push and pull request.
+
+## License
+
+[MIT](LICENSE)

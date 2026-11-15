@@ -34,6 +34,8 @@ Built-in labels stay in `GENERIC_KEYWORDS`. Personal labels live in gitignored `
 - A request or encode failure leaves the file where it is. A missing keyword still allows a rename when the slug exists.
 - Screenshots are often RGBA. Convert the preview to RGB before saving JPEG.
 - Dependencies are `Pillow`, `pillow-heif`, `requests`, and `python-dotenv`, declared in `requirements.txt`. `pillow-heif` registers HEIC and HEIF so `Image.open` can read them. The file on disk keeps its extension.
-- Match the 2-space indent already used in `script.py`.
+- Development tools (`ruff`, `pytest`, `pre-commit`) are declared in `requirements-dev.txt` and configured in `pyproject.toml`. They are not runtime dependencies.
+- `ruff format` owns the style: 2-space indent, 80 columns. Run `make check` (lint, format check, tests) before committing. `make format` applies the fixes.
+- Tests live in `tests/` and never call Ollama. Add a case there when a naming or clustering rule changes.
 - Comments, docs, and identifiers stay in English. Chat replies to the user stay in Ukrainian.
 - `.env` and `keywords.local.py` are gitignored. Commit `.env.example` when the variable set changes, and `keywords.local.example.py` when the local keyword format changes.

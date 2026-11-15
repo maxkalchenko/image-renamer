@@ -12,5 +12,6 @@ alwaysApply: true
 - Rename when a keyword or a slug is known. If the model call fails completely, leave the file where it is. Skip files that already match `[device_]YYYY-MM-DD[_HH-MM-SS][_keyword]_slug`.
 - Login and password screens are `credentials`. The slug names the service and must not contain the secret, a code, an email, or a phone number. Ask Ollama with thinking disabled.
 - Add built-in labels in `GENERIC_KEYWORDS` (specific first) and one line in `GENERIC_GUIDE`. Personal labels go in gitignored `keywords.local.py`, specific first. `ALLOWED_KEYWORDS` is the merged list. Convert previews to RGB before JPEG: macOS screenshots are RGBA.
-- Dependencies: `Pillow`, `pillow-heif`, `requests`, `python-dotenv`. `pillow-heif` registers HEIC and HEIF; the file on disk keeps its extension. Indent Python with 2 spaces, matching `script.py`.
+- Dependencies: `Pillow`, `pillow-heif`, `requests`, `python-dotenv`. `pillow-heif` registers HEIC and HEIF; the file on disk keeps its extension.
+- Development tools (`ruff`, `pytest`, `pre-commit`) live in `requirements-dev.txt` and are configured in `pyproject.toml`. `ruff format` owns the style: 2-space indent, 80 columns. Run `make check` before committing. Tests in `tests/` never call Ollama.
 - Docs and code in English. Reply to the user in Ukrainian.
