@@ -8,83 +8,81 @@ import re
 import sys
 import unicodedata
 
-import requests
 from dotenv import load_dotenv
 from PIL import Image
 from PIL.ExifTags import IFD, TAGS
 from pillow_heif import register_heif_opener
+import requests
 
 register_heif_opener()
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # Ollama configuration
-OLLAMA_URL = os.getenv(
-    "OLLAMA_URL", "http://localhost:11434/api/generate"
-)
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 MODEL_NAME = os.getenv("OLLAMA_MODEL", "openbmb/minicpm-v4.6")
 
 # Built-in labels. Personal ones are prepended from keywords.local.py.
 # The first match in the merged list wins.
 # There is no "other": a screen or photograph that fits nothing contributes no keyword.
 GENERIC_KEYWORDS = [
-    "credentials",
-    "chat",
-    "meeting",
-    "diagram",
-    "database",
-    "git",
-    "terminal",
-    "code",
-    "wireless",
-    "directory",
-    "project",
-    "document",
-    "receipt",
-    "notes",
-    "chart",
-    "error",
-    "settings",
-    "browser",
-    "meme",
-    "people",
-    "animal",
-    "food",
-    "nature",
+  "credentials",
+  "chat",
+  "meeting",
+  "diagram",
+  "database",
+  "git",
+  "terminal",
+  "code",
+  "wireless",
+  "directory",
+  "project",
+  "document",
+  "receipt",
+  "notes",
+  "chart",
+  "error",
+  "settings",
+  "browser",
+  "meme",
+  "people",
+  "animal",
+  "food",
+  "nature",
 ]
 
 # Words the model may say that should be stored as a listed keyword.
 GENERIC_ALIASES = {
-    "password": "credentials",
-    "passwords": "credentials",
-    "passkey": "credentials",
-    "login": "credentials",
-    "authentication": "credentials",
-    "username": "credentials",
-    "gitlab": "git",
-    "github": "git",
-    "flowchart": "diagram",
-    "wifi": "wireless",
-    "plink": "wireless",
-    "order": "receipt",
-    "invoice": "receipt",
-    "voucher": "receipt",
-    "vouchers": "receipt",
-    "call": "meeting",
-    "letter": "document",
-    "website": "browser",
-    "person": "people",
-    "couple": "people",
-    "portrait": "people",
-    "selfie": "people",
-    "pet": "animal",
-    "dog": "animal",
-    "cat": "animal",
-    "meal": "food",
-    "dish": "food",
-    "landscape": "nature",
-    "forest": "nature",
-    "flower": "nature",
+  "password": "credentials",
+  "passwords": "credentials",
+  "passkey": "credentials",
+  "login": "credentials",
+  "authentication": "credentials",
+  "username": "credentials",
+  "gitlab": "git",
+  "github": "git",
+  "flowchart": "diagram",
+  "wifi": "wireless",
+  "plink": "wireless",
+  "order": "receipt",
+  "invoice": "receipt",
+  "voucher": "receipt",
+  "vouchers": "receipt",
+  "call": "meeting",
+  "letter": "document",
+  "website": "browser",
+  "person": "people",
+  "couple": "people",
+  "portrait": "people",
+  "selfie": "people",
+  "pet": "animal",
+  "dog": "animal",
+  "cat": "animal",
+  "meal": "food",
+  "dish": "food",
+  "landscape": "nature",
+  "forest": "nature",
+  "flower": "nature",
 }
 
 GENERIC_GUIDE = """
@@ -124,49 +122,56 @@ def load_local_keywords():
     return [], {}
   module = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(module)
-  return list(getattr(module, "KEYWORDS", [])), dict(getattr(module, "ALIASES", {}))
+  return list(getattr(module, "KEYWORDS", [])), dict(
+    getattr(module, "ALIASES", {})
+  )
 
 
 _local_keywords, _local_aliases = load_local_keywords()
 
-ALLOWED_KEYWORDS = [
-    name for name, _hint in _local_keywords
-] + GENERIC_KEYWORDS
+ALLOWED_KEYWORDS = [name for name, _hint in _local_keywords] + GENERIC_KEYWORDS
 KEYWORD_ALIASES = {**GENERIC_ALIASES, **_local_aliases}
-_local_guide = "\n".join(
-    f"{name}: {hint}" for name, hint in _local_keywords
-)
+_local_guide = "\n".join(f"{name}: {hint}" for name, hint in _local_keywords)
 KEYWORD_GUIDE = "\n".join(
-    part for part in (_local_guide, GENERIC_GUIDE) if part
+  part for part in (_local_guide, GENERIC_GUIDE) if part
 )
 
 _KEYWORD_ALT = "|".join(
-    re.escape(keyword)
-    for keyword in sorted(ALLOWED_KEYWORDS, key=len, reverse=True)
+  re.escape(keyword)
+  for keyword in sorted(ALLOWED_KEYWORDS, key=len, reverse=True)
 )
 # git.png and git_1.png from the old folder layout.
 KNOWN_STEM = re.compile(rf"^(?P<kw>{_KEYWORD_ALT})(?:_\d+)?$")
 # git_2025-01-15.png and git_2025-01-15_16-42-14.png, no description yet.
 DATED_STEM = re.compile(
-    rf"^(?P<kw>{_KEYWORD_ALT})_\d{{4}}-\d{{2}}-\d{{2}}"
-    rf"(?:_\d{{2}}-\d{{2}}-\d{{2}}(?:_\d+)?)?$"
+  rf"^(?P<kw>{_KEYWORD_ALT})_\d{{4}}-\d{{2}}-\d{{2}}"
+  rf"(?:_\d{{2}}-\d{{2}}-\d{{2}}(?:_\d+)?)?$"
 )
 # 2024-12-12git.png from the flattened names already on disk.
 GLUED_STEM = re.compile(
-    rf"^(?P<date>\d{{4}}-\d{{2}}-\d{{2}})(?P<kw>{_KEYWORD_ALT})(?:_\d+)?$"
+  rf"^(?P<date>\d{{4}}-\d{{2}}-\d{{2}})(?P<kw>{_KEYWORD_ALT})(?:_\d+)?$"
 )
 SLUG_STOPWORDS = {
-    "a", "an", "the", "of", "and", "with", "for", "to", "in", "on",
+  "a",
+  "an",
+  "the",
+  "of",
+  "and",
+  "with",
+  "for",
+  "to",
+  "in",
+  "on",
 }
 # Older runs stored a failed label as other.png or 2024-12-06other.png.
 LEGACY_OTHER = re.compile(
-    r"^(?:other(?:_\d+)?|other_\d{4}-\d{2}-\d{2}.*|\d{4}-\d{2}-\d{2}other(?:_\d+)?)$"
+  r"^(?:other(?:_\d+)?|other_\d{4}-\d{2}-\d{2}.*|\d{4}-\d{2}-\d{2}other(?:_\d+)?)$"
 )
 NEW_NAME = re.compile(
-    r"^(?:(?P<device>[a-z0-9]+(?:-[a-z0-9]+)*)_)?"
-    r"(?P<date>\d{4}-\d{2}-\d{2})"
-    r"(?:_(?P<time>\d{2}-\d{2}-\d{2})(?:_(?P<n>\d+))?)?"
-    r"(?:_(?P<rest>.+))?$"
+  r"^(?:(?P<device>[a-z0-9]+(?:-[a-z0-9]+)*)_)?"
+  r"(?P<date>\d{4}-\d{2}-\d{2})"
+  r"(?:_(?P<time>\d{2}-\d{2}-\d{2})(?:_(?P<n>\d+))?)?"
+  r"(?:_(?P<rest>.+))?$"
 )
 VALID_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
 
@@ -256,9 +261,9 @@ def xmp_user_comment(img):
     raw = raw.encode("utf-8", "replace")
   text = raw.decode("utf-8", "replace")
   match = re.search(
-      r"<exif:UserComment>(.*?)</exif:UserComment>",
-      text,
-      re.IGNORECASE | re.DOTALL,
+    r"<exif:UserComment>(.*?)</exif:UserComment>",
+    text,
+    re.IGNORECASE | re.DOTALL,
   )
   if not match:
     return ""
@@ -301,8 +306,7 @@ def pick_keyword(result):
   folded = fold_text(result)
   for keyword in ALLOWED_KEYWORDS:
     names = [keyword] + [
-        alias for alias, target in KEYWORD_ALIASES.items()
-        if target == keyword
+      alias for alias, target in KEYWORD_ALIASES.items() if target == keyword
     ]
     for name in sorted(names, key=len, reverse=True):
       if re.search(rf"\b{re.escape(name)}\b", folded):
@@ -342,8 +346,9 @@ def clean_slug(value):
   """Turns a model phrase into 4 to 6 filename words."""
   folded = fold_text(value)
   parts = [
-      part for part in re.findall(r"[a-z0-9]+", folded)
-      if part not in SLUG_STOPWORDS and not looks_like_secret(part)
+    part
+    for part in re.findall(r"[a-z0-9]+", folded)
+    if part not in SLUG_STOPWORDS and not looks_like_secret(part)
   ]
   words = parts[:6]
   slug = "-".join(words)
@@ -358,18 +363,20 @@ def ask_chat(file_path, prompt, num_predict):
   with Image.open(file_path) as img:
     img_base64 = preview_base64(img)
   payload = {
-      "model": MODEL_NAME,
-      "stream": False,
-      "think": False,
-      "messages": [{
-          "role": "user",
-          "content": prompt,
-          "images": [img_base64],
-      }],
-      "options": {
-          "temperature": 0,
-          "num_predict": num_predict,
-      },
+    "model": MODEL_NAME,
+    "stream": False,
+    "think": False,
+    "messages": [
+      {
+        "role": "user",
+        "content": prompt,
+        "images": [img_base64],
+      }
+    ],
+    "options": {
+      "temperature": 0,
+      "num_predict": num_predict,
+    },
   }
   response = requests.post(chat_url(), json=payload, timeout=120)
   if response.status_code != 200:
@@ -383,13 +390,13 @@ def ask_model(file_path, known_keyword):
   """Returns (keyword, slug). The slug is empty when the model fails."""
   try:
     slug_text = ask_chat(
-        file_path,
-        "Name what is visible in 4 to 6 English words. "
-        "Use hyphens and no other words. Example: gitlab-merge-request-diff. "
-        "Never write a password, passphrase, API key, token, code, "
-        "username, email, or phone number. If a secret is on screen, "
-        "name the service instead, such as gitlab-login or wifi-panel.",
-        num_predict=48,
+      file_path,
+      "Name what is visible in 4 to 6 English words. "
+      "Use hyphens and no other words. Example: gitlab-merge-request-diff. "
+      "Never write a password, passphrase, API key, token, code, "
+      "username, email, or phone number. If a secret is on screen, "
+      "name the service instead, such as gitlab-login or wifi-panel.",
+      num_predict=48,
     )
     slug = clean_slug(slug_text)
     print(f"Model said: {slug_text}")
@@ -397,15 +404,15 @@ def ask_model(file_path, known_keyword):
       return known_keyword, slug
 
     label_text = ask_chat(
-        file_path,
-        "Reply with one word from this list: "
-        + ", ".join(ALLOWED_KEYWORDS)
-        + ".\n"
-        + KEYWORD_GUIDE
-        + "\nFor a camera photograph, use people, animal, food, or nature. "
-        "If none of the definitions truly fits, reply none. "
-        "Do not choose the closest word.",
-        num_predict=8,
+      file_path,
+      "Reply with one word from this list: "
+      + ", ".join(ALLOWED_KEYWORDS)
+      + ".\n"
+      + KEYWORD_GUIDE
+      + "\nFor a camera photograph, use people, animal, food, or nature. "
+      "If none of the definitions truly fits, reply none. "
+      "Do not choose the closest word.",
+      num_predict=8,
     )
     print(f"Label said: {label_text}")
     return pick_keyword(label_text), slug
@@ -422,7 +429,7 @@ def split_keyword_slug(rest):
       return keyword, ""
     prefix = keyword + "_"
     if rest.startswith(prefix):
-      return keyword, rest[len(prefix):]
+      return keyword, rest[len(prefix) :]
   return "", rest
 
 
@@ -459,7 +466,7 @@ def display_name(source_dir, source_path):
   parent = os.path.basename(os.path.dirname(source_path))
   filename = os.path.basename(source_path)
   if os.path.abspath(os.path.dirname(source_path)) == os.path.abspath(
-      source_dir
+    source_dir
   ):
     return filename
   return f"{parent}/{filename}"
@@ -474,9 +481,9 @@ def keyword_for(source_path):
   if parsed and parsed["keyword"]:
     return parsed["keyword"]
   known = (
-      KNOWN_STEM.fullmatch(stem)
-      or DATED_STEM.fullmatch(stem)
-      or GLUED_STEM.fullmatch(stem)
+    KNOWN_STEM.fullmatch(stem)
+    or DATED_STEM.fullmatch(stem)
+    or GLUED_STEM.fullmatch(stem)
   )
   if known:
     return known.group("kw")
@@ -484,10 +491,9 @@ def keyword_for(source_path):
 
 
 def path_is_free(path, source_path):
-  return (
-      os.path.abspath(path) == os.path.abspath(source_path)
-      or not os.path.exists(path)
-  )
+  return os.path.abspath(path) == os.path.abspath(
+    source_path
+  ) or not os.path.exists(path)
 
 
 def build_filename(
@@ -517,10 +523,8 @@ def target_path_for(source_dir, source_path, keyword, slug):
   time_stamp = file_dt.strftime("%H-%M-%S")
   device = device_slug(source_path)
   timed = os.path.join(
-      source_dir,
-      build_filename(
-          date_stamp, keyword, slug, ext, time_stamp, device=device
-      ),
+    source_dir,
+    build_filename(date_stamp, keyword, slug, ext, time_stamp, device=device),
   )
   if path_is_free(timed, source_path):
     return timed
@@ -528,10 +532,10 @@ def target_path_for(source_dir, source_path, keyword, slug):
   counter = 2
   while counter < 1000:
     path = os.path.join(
-        source_dir,
-        build_filename(
-            date_stamp, keyword, slug, ext, time_stamp, counter, device
-        ),
+      source_dir,
+      build_filename(
+        date_stamp, keyword, slug, ext, time_stamp, counter, device
+      ),
     )
     if path_is_free(path, source_path):
       return path
@@ -547,16 +551,12 @@ def organize_images_with_ai(source_dir):
   processed_count = 0
   skipped_count = 0
 
-  print(
-      f"Starting sorting with model '{MODEL_NAME}' using English keywords..."
-  )
+  print(f"Starting sorting with model '{MODEL_NAME}' using English keywords...")
 
   for source_path in list(iter_images(source_dir)):
     label = display_name(source_dir, source_path)
     print(f"Analyzing: {label}...")
-    keyword, slug = ask_model(
-        source_path, keyword_for(source_path)
-    )
+    keyword, slug = ask_model(source_path, keyword_for(source_path))
     if not keyword and not slug:
       print(f"Skipped, file left in place: {label}")
       skipped_count += 1
@@ -568,9 +568,7 @@ def organize_images_with_ai(source_dir):
     print(f"✅ {label} -> {os.path.basename(target_path)}")
     processed_count += 1
 
-  print(
-      f"\nDone! Processed files: {processed_count}. Skipped: {skipped_count}"
-  )
+  print(f"\nDone! Processed files: {processed_count}. Skipped: {skipped_count}")
 
 
 def resolve_source_dir():
@@ -580,9 +578,7 @@ def resolve_source_dir():
   else:
     path_to_sort = os.getenv("IMG_DIR", "").strip()
   if not path_to_sort:
-    path_to_sort = input(
-        "Enter the path to the folder with images: "
-    ).strip()
+    path_to_sort = input("Enter the path to the folder with images: ").strip()
   if not path_to_sort:
     path_to_sort = "."
   return os.path.expanduser(path_to_sort)

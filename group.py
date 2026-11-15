@@ -27,9 +27,7 @@ def cluster_by_gap(items, gap):
 
   A cluster may cross midnight when the gap stays under the threshold.
   """
-  ordered = sorted(
-      items, key=lambda item: (item[0], os.path.basename(item[1]))
-  )
+  ordered = sorted(items, key=lambda item: (item[0], os.path.basename(item[1])))
   groups = []
   current = []
   for item in ordered:
@@ -47,9 +45,8 @@ def folder_name(source_dir, start, reserved):
   date_stamp = start.strftime("%Y-%m-%d")
   candidate = date_stamp
   number = 2
-  while (
-      candidate in reserved
-      or os.path.exists(os.path.join(source_dir, candidate))
+  while candidate in reserved or os.path.exists(
+    os.path.join(source_dir, candidate)
   ):
     candidate = f"{date_stamp}_{number}"
     number += 1
@@ -73,10 +70,7 @@ def group_images(source_dir, dry_run=False):
     start = group[0][0]
     if len(group) < MIN_GROUP_SIZE:
       kept += len(group)
-      print(
-          f"Kept in place ({len(group)}): "
-          f"{start.strftime('%Y-%m-%d %H:%M')}"
-      )
+      print(f"Kept in place ({len(group)}): {start.strftime('%Y-%m-%d %H:%M')}")
       continue
 
     name = folder_name(source_dir, start, reserved)
