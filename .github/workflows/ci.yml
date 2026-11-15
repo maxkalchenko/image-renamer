@@ -39,13 +39,17 @@ jobs:
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
+    env:
+      # Keep in step with the gitleaks rev in .pre-commit-config.yaml.
+      GITLEAKS_VERSION: 8.30.0
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" gitleaks
+      # Scans every commit on every run, so the first push needs no special case.
+      - name: Scan the whole history
+        run: '"$RUNNER_TEMP/gitleaks" git --redact --verbose --exit-code 1 .'
